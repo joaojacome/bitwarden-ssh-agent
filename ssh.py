@@ -2,6 +2,7 @@ import subprocess
 import os
 import sys
 import json
+import tempfile
 from urllib.parse import urlparse, urlencode
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError
@@ -46,6 +47,9 @@ except Exception as e:
     sys.exit(1)
 
 keys = []
+directory = tempfile.TemporaryDirectory()
+temporary_file_name = os.path.join(directory.name + './private_key')
+
 try:
     for item in items:
         private_key_file = [k['value'] for k in item['fields'] if k['name'] == 'private' and k['type'] == 0][0]
@@ -53,9 +57,9 @@ try:
         private_key_id = [k['id'] for k in item['attachments'] if k['fileName'] == private_key_file][0]
 
         # would be nice if there was an option to retrieve the attachment file directly to the stdout
-        subprocess.check_output(['bw', 'get', 'attachment', private_key_id, '--itemid', item['id'], '--output', './private_key'] + session)
-        private_key = open('private_key', 'r').read()
-        os.remove('./private_key')
+        subprocess.check_output(['bw', 'get', 'attachment', private_key_id, '--itemid', item['id'], '--output', temporary_file_name] + session)
+        private_key = open(temporary_file_name, 'r').read()
+        os.remove(temporary_file_name)
         keys.append({'private_key': private_key})
 except:
     print('Something happened.')
