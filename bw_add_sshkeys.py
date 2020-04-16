@@ -12,6 +12,58 @@ import subprocess
 import sys
 import tempfile
 
+from pkg_resources import parse_version
+
+
+def memoize(func):
+    """
+    Decorator function to cache the results of another function call
+    """
+    cache = dict()
+
+    def memoized_func(*args):
+        if args in cache:
+            return cache[args]
+        result = func(*args)
+        cache[args] = result
+        return result
+
+    return memoized_func
+
+
+@memoize
+def bwcli_version():
+    """
+    Function to return the version of the Bitwarden CLI
+    """
+    proc = subprocess.Popen(
+        [
+            'bw',
+            '--version'
+        ],
+        stdout=subprocess.PIPE
+    )
+
+    (stdout, _) = proc.communicate()
+
+    if proc.returncode:
+        raise RuntimeError('Unable to fetch Bitwarden CLI version')
+
+    return stdout.decode('utf-8')
+
+
+@memoize
+def cli_supports(feature):
+    """
+    Function to return whether the current Bitwarden CLI supports a particular
+    feature
+    """
+    version = parse_version(bwcli_version())
+
+    if feature == 'nointeraction' and version >= parse_version('1.9.0'):
+        return True
+    return False
+
 
 def get_session():
     """
@@ -49,12 +101,12 @@ def get_session():
     credentials.append(bytes(getpass.getpass('Bitwarden Vault password: '), encoding='ascii'))
 
     proc = subprocess.Popen(
-        [
+        list(filter(None, [
             'bw',
             '--raw',
-            '--nointeraction',
+            (None, '--nointeraction')[cli_supports('nointeraction')],
             operation
-        ] + credentials,
+        ] + credentials)),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -74,14 +126,14 @@ def get_folders(session, foldername):
     logging.debug('Folder name: %s', foldername)
 
     proc = subprocess.Popen(
-        [
+        list(filter(None, [
             'bw',
-            '--nointeraction',
+            (None, '--nointeraction')[cli_supports('nointeraction')],
             'list',
             'folders',
             '--search', foldername,
             '--session', session
-        ],
+        ])),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -112,14 +164,14 @@ def folder_items(session, folder_id):
     logging.debug('Folder ID: %s', folder_id)
 
     proc = subprocess.Popen(
-        [
+        list(filter(None, [
             'bw',
-            '--nointeraction',
+            (None, '--nointeraction')[cli_supports('nointeraction')],
             'list',
             'items',
             '--folderid', folder_id,
             '--session', session
-        ],
+        ])),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -171,16 +223,16 @@ def ssh_add(session, item_id, key_id):
     # TODO: avoid temporary files, if possible
     with tempfile.NamedTemporaryFile() as tmpfile:
         proc = subprocess.Popen(
-            [
+            list(filter(None, [
                 'bw',
-                '--nointeraction',
+                (None, '--nointeraction')[cli_supports('nointeraction')],
                 '--quiet',
                 'get',
                 'attachment', key_id,
                 '--itemid', item_id,
                 '--output', tmpfile.name,
                 '--session', session
-            ],
+            ])),
             stderr=subprocess.PIPE
         )
         (_, stderr) = proc.communicate()
