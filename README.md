@@ -1,31 +1,28 @@
 # Bitwarden SSH Agent
 
 ## Requirements
+* You need to have the [Bitwarden CLI tool](https://github.com/bitwarden/cli) installed and available in the `$PATH` as `bw`.
+* `ssh-agent` must be running in the current session.
 
-* You need to have the bitwarden cli `bw` installed
-* ssh-agent must be running in the current session
-
-## What it does?
-
-* connects to bitwarden using the bitwarden cli
-* looks for a folder called `ssh-agent`
-* loads the ssh key for each item in that folder
+## What does it do?
+Fetches SSH keys stored in Bitwarden vault and adds them to `ssh-agent`.
 
 ##  How to use it
-
-`$ ./start.sh`
-
-Fill in you login information 
+1. Run,
+   ```shell
+   ./bw_add_sshkeys.py
+   ```
+2. Enter your Bitwarden credentials, if a Bitwarden vault session is not already set.
+3. (optional) Enter your SSH keys' passphrases.
 
 
 ## Storing the keys in BitWarden
-
-1. Create a folder called 'ssh-agent'
-2. Add an new secure note to that folder
-3. Upload the private_key as an attachment
-4. add the custom field `private`, containing the private key filename
+1. Create a folder called `ssh-agent` (can be overridden on the command line).
+2. Add an new secure note to that folder.
+3. Upload the private key as an attachment.
+4. Add the custom field `private` (can be overridden on the command line), containing the file name of the private key attachment.
+5. Repeat steps 2-4 for each subsequent key
 
 
 ## Improvements to be made
-
-* Find a way to extract the attachment from bitwarden in memory, instead of creating a file for it
+* Find a way to extract the attachment from bitwarden in memory, instead of using a temporary file.
