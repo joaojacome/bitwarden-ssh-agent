@@ -210,7 +210,7 @@ def add_ssh_keys(session, items, keyname):
         logging.debug('Private key ID found')
 
         if not ssh_add(session, item['id'], private_key_id):
-            logging.warning('Could not add key to the SSD agent')
+            logging.warning('Could not add key to the SSH agent')
 
 
 def ssh_add(session, item_id, key_id):
@@ -220,7 +220,7 @@ def ssh_add(session, item_id, key_id):
     logging.debug('Item ID: %s', item_id)
     logging.debug('Key ID: %s', key_id)
 
-    # TODO: avoid temporary files, if possible
+    # FIXME: avoid temporary files, if possible (StringIO ?)
     with tempfile.NamedTemporaryFile() as tmpfile:
         proc = subprocess.Popen(
             list(filter(None, [
