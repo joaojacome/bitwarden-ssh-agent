@@ -10,7 +10,6 @@ import logging
 import os
 import subprocess
 import sys
-import tempfile
 
 from pkg_resources import parse_version
 
@@ -36,20 +35,13 @@ def bwcli_version():
     """
     Function to return the version of the Bitwarden CLI
     """
-    proc = subprocess.Popen(
-        [
-            'bw',
-            '--version'
-        ],
-        stdout=subprocess.PIPE
+    proc_version = subprocess.run(
+        ['bw', '--version'],
+        stdout=subprocess.PIPE,
+        text=True
     )
-
-    (stdout, _) = proc.communicate()
-
-    if proc.returncode:
-        raise RuntimeError('Unable to fetch Bitwarden CLI version')
-
-    return stdout.decode('utf-8')
+    proc_version.check_returncode()
+    return proc_version.stdout
 
 
 @memoize
@@ -70,53 +62,27 @@ def get_session():
     Function to return a valid Bitwarden session
     """
     # Check for an existing, user-supplied Bitwarden session
-    try:
-        if os.environ['BW_SESSION']:
-            logging.debug('Existing Bitwarden session found')
-            return os.environ['BW_SESSION']
-    except KeyError:
-        pass
+    if (session := os.environ.get('BW_SESSION')) is not None:
+        logging.debug('Existing Bitwarden session found')
+        return session
 
     # Check if we're already logged in
-    proc = subprocess.Popen(
-        [
-            'bw',
-            'login',
-            '--check',
-            '--quiet'
-        ]
-    )
-    proc.wait()
+    proc_logged = subprocess.run(['bw', 'login', '--check', '--quiet'])
 
-    if proc.returncode:
+    if proc_logged.returncode:
         logging.debug('Not logged into Bitwarden')
         operation = 'login'
-        credentials = [bytes(input('Bitwarden user: '), encoding='ascii')]
     else:
         logging.debug('Bitwarden vault is locked')
         operation = 'unlock'
-        credentials = []
 
-    # Ask for the password
-    credentials.append(bytes(getpass.getpass('Bitwarden Vault password: '), encoding='ascii'))
-
-    proc = subprocess.Popen(
-        list(filter(None, [
-            'bw',
-            '--raw',
-            (None, '--nointeraction')[cli_supports('nointeraction')],
-            operation
-        ] + credentials)),
+    proc_session = subprocess.run(
+        ['bw', '--raw', operation],
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        text=True,
     )
-    (stdout, stderr) = proc.communicate()
-
-    if proc.returncode:
-        logging.error(stderr.decode('utf-8'))
-        return None
-
-    return stdout.decode('utf-8')
+    proc_session.check_returncode()
+    return proc_session.stdout
 
 
 def get_folders(session, foldername):
@@ -125,25 +91,14 @@ def get_folders(session, foldername):
     """
     logging.debug('Folder name: %s', foldername)
 
-    proc = subprocess.Popen(
-        list(filter(None, [
-            'bw',
-            (None, '--nointeraction')[cli_supports('nointeraction')],
-            'list',
-            'folders',
-            '--search', foldername,
-            '--session', session
-        ])),
+    proc_folders = subprocess.run(
+        ['bw', 'list', 'folders', '--search', foldername, '--session', session],
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        text=True,
     )
-    (stdout, stderr) = proc.communicate()
+    proc_folders.check_returncode()
 
-    if proc.returncode:
-        logging.error(stderr.decode('utf-8'))
-        return None
-
-    folders = json.loads(stdout)
+    folders = json.loads(proc_folders.stdout)
 
     if not folders:
         logging.error('"%s" folder not found', foldername)
@@ -163,25 +118,13 @@ def folder_items(session, folder_id):
     """
     logging.debug('Folder ID: %s', folder_id)
 
-    proc = subprocess.Popen(
-        list(filter(None, [
-            'bw',
-            (None, '--nointeraction')[cli_supports('nointeraction')],
-            'list',
-            'items',
-            '--folderid', folder_id,
-            '--session', session
-        ])),
+    proc_items = subprocess.run(
+        [ 'bw', 'list', 'items', '--folderid', folder_id, '--session', session],
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        text=True,
     )
-    (stdout, stderr) = proc.communicate()
-
-    if proc.returncode:
-        logging.error(stderr.decode('utf-8'))
-        return None
-
-    return json.loads(stdout)
+    proc_items.check_returncode()
+    return json.loads(proc_items.stdout)
 
 
 def add_ssh_keys(session, items, keyname):
@@ -220,36 +163,25 @@ def ssh_add(session, item_id, key_id):
     logging.debug('Item ID: %s', item_id)
     logging.debug('Key ID: %s', key_id)
 
-    # FIXME: avoid temporary files, if possible (StringIO ?)
-    with tempfile.NamedTemporaryFile() as tmpfile:
-        proc = subprocess.Popen(
-            list(filter(None, [
-                'bw',
-                (None, '--nointeraction')[cli_supports('nointeraction')],
-                '--quiet',
-                'get',
-                'attachment', key_id,
-                '--itemid', item_id,
-                '--output', tmpfile.name,
-                '--session', session
-            ])),
-            stderr=subprocess.PIPE
-        )
-        (_, stderr) = proc.communicate()
-        if proc.returncode:
-            logging.error(stderr.decode('utf-8'))
-            return False
+    proc_attachment = subprocess.run([
+            'bw',
+            'get',
+            'attachment', key_id,
+            '--itemid', item_id,
+            '--raw',
+            '--session', session
+        ],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    proc_attachment.check_returncode()
+    ssh_key = proc_attachment.stdout
 
-        logging.debug("Running ssh-add")
+    logging.debug("Running ssh-add")
 
-        # CAVEAT: `ssh-add` provides no useful output, even with maximum verbosity
-        proc = subprocess.Popen(['ssh-add', tmpfile.name])
-        proc.wait()
-
-        if proc.returncode:
-            return False
-
-        return True
+    # CAVEAT: `ssh-add` provides no useful output, even with maximum verbosity
+    proc_ssh_add = subprocess.run(['ssh-add', '-'], input=ssh_key, text=True)
+    proc_ssh_add.check_returncode()
 
 
 if __name__ == '__main__':
@@ -291,23 +223,22 @@ if __name__ == '__main__':
 
         logging.basicConfig(level=loglevel)
 
-        logging.info('Getting Bitwarden session')
-        session = get_session()
-        if not session:
-            sys.exit(1)
-        logging.debug('Session = %s', session)
+        try:
+            logging.info('Getting Bitwarden session')
+            session = get_session()
+            logging.debug('Session = %s', session)
 
-        logging.info('Getting folder list')
-        folder_id = get_folders(session, args.foldername)
-        if not folder_id:
-            sys.exit(2)
+            logging.info('Getting folder list')
+            folder_id = get_folders(session, args.foldername)
 
-        logging.info('Getting folder items')
-        items = folder_items(session, folder_id)
-        if not items:
-            sys.exit(3)
+            logging.info('Getting folder items')
+            items = folder_items(session, folder_id)
 
-        logging.info('Attempting to add keys to ssh-agent')
-        add_ssh_keys(session, items, args.customfield)
+            logging.info('Attempting to add keys to ssh-agent')
+            add_ssh_keys(session, items, args.customfield)
+        except subprocess.CalledProcessError as e:
+            if e.stderr:
+                logging.error('`%s` error: %s', e.cmd[0], e.stderr)
+            logging.debug('Error running %s', e.cmd)
 
     main()
