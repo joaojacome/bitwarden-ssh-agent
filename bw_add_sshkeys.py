@@ -38,9 +38,9 @@ def bwcli_version():
     proc_version = subprocess.run(
         ['bw', '--version'],
         stdout=subprocess.PIPE,
-        text=True
+        text=True,
+        check=True,
     )
-    proc_version.check_returncode()
     return proc_version.stdout
 
 
@@ -81,8 +81,8 @@ def get_session():
         ['bw', '--raw', operation],
         stdout=subprocess.PIPE,
         text=True,
+        check=True,
     )
-    proc_session.check_returncode()
     return proc_session.stdout
 
 
@@ -96,8 +96,8 @@ def get_folders(session, foldername):
         ['bw', 'list', 'folders', '--search', foldername, '--session', session],
         stdout=subprocess.PIPE,
         text=True,
+        check=True,
     )
-    proc_folders.check_returncode()
 
     folders = json.loads(proc_folders.stdout)
 
@@ -123,8 +123,8 @@ def folder_items(session, folder_id):
         [ 'bw', 'list', 'items', '--folderid', folder_id, '--session', session],
         stdout=subprocess.PIPE,
         text=True,
+        check=True,
     )
-    proc_items.check_returncode()
     return json.loads(proc_items.stdout)
 
 
@@ -174,15 +174,19 @@ def ssh_add(session, item_id, key_id):
         ],
         stdout=subprocess.PIPE,
         text=True,
+        check=True,
     )
-    proc_attachment.check_returncode()
     ssh_key = proc_attachment.stdout
 
     logging.debug("Running ssh-add")
 
     # CAVEAT: `ssh-add` provides no useful output, even with maximum verbosity
-    proc_ssh_add = subprocess.run(['ssh-add', '-'], input=ssh_key, text=True)
-    proc_ssh_add.check_returncode()
+    proc_ssh_add = subprocess.run(
+        ['ssh-add', '-'],
+        input=ssh_key,
+        text=True,
+        check=True,
+    )
 
 
 if __name__ == '__main__':
