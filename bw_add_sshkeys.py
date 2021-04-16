@@ -62,7 +62,8 @@ def get_session():
     Function to return a valid Bitwarden session
     """
     # Check for an existing, user-supplied Bitwarden session
-    if (session := os.environ.get('BW_SESSION')) is not None:
+    session = os.environ.get('BW_SESSION')
+    if session is not None:
         logging.debug('Existing Bitwarden session found')
         return session
 
