@@ -153,7 +153,9 @@ def add_ssh_keys(session, items, keyname):
             continue
         logging.debug('Private key ID found')
 
-        if not ssh_add(session, item['id'], private_key_id):
+        try:
+            ssh_add(session, item['id'], private_key_id)
+        except subprocess.SubprocessError:
             logging.warning('Could not add key to the SSH agent')
 
 
@@ -181,7 +183,7 @@ def ssh_add(session, item_id, key_id):
     logging.debug("Running ssh-add")
 
     # CAVEAT: `ssh-add` provides no useful output, even with maximum verbosity
-    proc_ssh_add = subprocess.run(
+    subprocess.run(
         ['ssh-add', '-'],
         input=ssh_key,
         text=True,
