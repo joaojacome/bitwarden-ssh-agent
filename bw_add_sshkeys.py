@@ -4,12 +4,10 @@ Extracts SSH keys from Bitwarden vault
 """
 
 import argparse
-import getpass
 import json
 import logging
 import os
 import subprocess
-import sys
 
 from pkg_resources import parse_version
 
@@ -186,6 +184,8 @@ def ssh_add(session, item_id, key_id):
     subprocess.run(
         ['ssh-add', '-'],
         input=ssh_key,
+        # Works even if ssh-askpass is not installed
+        env=dict(os.environ, SSH_ASKPASS_REQUIRE="never"),
         text=True,
         check=True,
     )
