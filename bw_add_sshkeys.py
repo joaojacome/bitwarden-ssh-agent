@@ -137,6 +137,9 @@ def add_ssh_keys(session, items, keyname):
         except IndexError:
             logging.warning('No "%s" field found for item %s', keyname, item['name'])
             continue
+        except KeyError as e:
+            logging.debug('No key "%s" found in item %s - skipping', e.args[0], item['name'])
+            continue
         logging.debug('Private key file declared')
 
         try:
