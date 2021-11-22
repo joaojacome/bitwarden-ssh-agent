@@ -36,7 +36,7 @@ def bwcli_version():
     proc_version = subprocess.run(
         ['bw', '--version'],
         stdout=subprocess.PIPE,
-        text=True,
+        universal_newlines=True,
         check=True,
     )
     return proc_version.stdout
@@ -78,7 +78,7 @@ def get_session():
     proc_session = subprocess.run(
         ['bw', '--raw', operation],
         stdout=subprocess.PIPE,
-        text=True,
+        universal_newlines=True,
         check=True,
     )
     return proc_session.stdout
@@ -93,7 +93,7 @@ def get_folders(session, foldername):
     proc_folders = subprocess.run(
         ['bw', 'list', 'folders', '--search', foldername, '--session', session],
         stdout=subprocess.PIPE,
-        text=True,
+        universal_newlines=True,
         check=True,
     )
 
@@ -120,7 +120,7 @@ def folder_items(session, folder_id):
     proc_items = subprocess.run(
         [ 'bw', 'list', 'items', '--folderid', folder_id, '--session', session],
         stdout=subprocess.PIPE,
-        text=True,
+        universal_newlines=True,
         check=True,
     )
     return json.loads(proc_items.stdout)
@@ -176,7 +176,7 @@ def ssh_add(session, item_id, key_id):
             '--session', session
         ],
         stdout=subprocess.PIPE,
-        text=True,
+        universal_newlines=True,
         check=True,
     )
     ssh_key = proc_attachment.stdout
@@ -189,7 +189,7 @@ def ssh_add(session, item_id, key_id):
         input=ssh_key,
         # Works even if ssh-askpass is not installed
         env=dict(os.environ, SSH_ASKPASS_REQUIRE="never"),
-        text=True,
+        universal_newlines=True,
         check=True,
     )
 
