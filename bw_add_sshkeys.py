@@ -81,7 +81,12 @@ def get_session():
         universal_newlines=True,
         check=True,
     )
-    return proc_session.stdout
+    session = proc_session.stdout
+    logging.info(
+        'To re-use this BitWarden session run: export BW_SESSION="%s"',
+        session,
+    )
+    return session
 
 
 def get_folders(session, foldername):
@@ -118,7 +123,7 @@ def folder_items(session, folder_id):
     logging.debug('Folder ID: %s', folder_id)
 
     proc_items = subprocess.run(
-        [ 'bw', 'list', 'items', '--folderid', folder_id, '--session', session],
+        ['bw', 'list', 'items', '--folderid', folder_id, '--session', session],
         stdout=subprocess.PIPE,
         universal_newlines=True,
         check=True,
@@ -132,24 +137,32 @@ def add_ssh_keys(session, items, keyname):
     """
     for item in items:
         try:
-            private_key_file = [k['value'] for k in item['fields']
-                                if k['name'] == keyname and k['type'] == 0][0]
+            private_key_file = [
+                k['value']
+                for k in item['fields']
+                if k['name'] == keyname and k['type'] == 0
+            ][0]
         except IndexError:
             logging.warning('No "%s" field found for item %s', keyname, item['name'])
             continue
         except KeyError as e:
-            logging.debug('No key "%s" found in item %s - skipping', e.args[0], item['name'])
+            logging.debug(
+                'No key "%s" found in item %s - skipping', e.args[0], item['name']
+            )
             continue
         logging.debug('Private key file declared')
 
         try:
-            private_key_id = [k['id'] for k in item['attachments']
-                              if k['fileName'] == private_key_file][0]
+            private_key_id = [
+                k['id']
+                for k in item['attachments']
+                if k['fileName'] == private_key_file
+            ][0]
         except IndexError:
             logging.warning(
                 'No attachment called "%s" found for item %s',
                 private_key_file,
-                item['name']
+                item['name'],
             )
             continue
         logging.debug('Private key ID found')
@@ -167,13 +180,17 @@ def ssh_add(session, item_id, key_id):
     logging.debug('Item ID: %s', item_id)
     logging.debug('Key ID: %s', key_id)
 
-    proc_attachment = subprocess.run([
+    proc_attachment = subprocess.run(
+        [
             'bw',
             'get',
-            'attachment', key_id,
-            '--itemid', item_id,
+            'attachment',
+            key_id,
+            '--itemid',
+            item_id,
             '--raw',
-            '--session', session
+            '--session',
+            session,
         ],
         stdout=subprocess.PIPE,
         universal_newlines=True,
@@ -195,29 +212,32 @@ def ssh_add(session, item_id, key_id):
 
 
 if __name__ == '__main__':
+
     def parse_args():
         """
         Function to parse command line arguments
         """
         parser = argparse.ArgumentParser()
         parser.add_argument(
-            '-d', '--debug',
+            '-d',
+            '--debug',
             action='store_true',
             help='show debug output',
         )
         parser.add_argument(
-            '-f', '--foldername',
+            '-f',
+            '--foldername',
             default='ssh-agent',
             help='folder name to use to search for SSH keys',
         )
         parser.add_argument(
-            '-c', '--customfield',
+            '-c',
+            '--customfield',
             default='private',
             help='custom field name where private key filename is stored',
         )
 
         return parser.parse_args()
-
 
     def main():
         """
