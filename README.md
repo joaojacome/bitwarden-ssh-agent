@@ -22,7 +22,3 @@ Fetches SSH keys stored in Bitwarden vault and adds them to `ssh-agent`.
 3. Upload the private key as an attachment.
 4. Add the custom field `private` (can be overridden on the command line), containing the file name of the private key attachment.
 5. Repeat steps 2-4 for each subsequent key
-
-
-## Improvements to be made
-* Find a way to extract the attachment from bitwarden in memory, instead of using a temporary file.
