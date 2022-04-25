@@ -135,7 +135,7 @@ def folder_items(session: str, folder_id: str) -> List[Dict[str, Any]]:
     return data
 
 
-def add_ssh_keys(session: str, items: List[Dict[str, Any]], keyname: str) -> None:
+def add_ssh_keys(session: str, items: List[Dict[str, Any]], keyname: str, pwkeyname: str) -> None:
     """
     Function to attempt to get keys from a vault item
     """
@@ -144,7 +144,7 @@ def add_ssh_keys(session: str, items: List[Dict[str, Any]], keyname: str) -> Non
             private_key_file = [
                 k['value']
                 for k in item['fields']
-                if k['name'] == keyname and k['type'] == 0
+                if k['name'] == keyname
             ][0]
         except IndexError:
             logging.warning('No "%s" field found for item %s', keyname, item['name'])
@@ -155,6 +155,21 @@ def add_ssh_keys(session: str, items: List[Dict[str, Any]], keyname: str) -> Non
             )
             continue
         logging.debug('Private key file declared')
+
+        private_key_pw = None
+        try:
+            private_key_pw = [
+                k['value']
+                for k in item['fields']
+                if k['name'] == pwkeyname
+            ][0]
+            logging.debug('Passphrase declared')
+        except IndexError:
+            logging.warning('No "%s" field found for item %s', pwkeyname, item['name'])
+        except KeyError as error:
+            logging.debug(
+                'No key "%s" found in item %s - skipping', error.args[0], item['name']
+            )
 
         try:
             private_key_id = [
@@ -172,12 +187,12 @@ def add_ssh_keys(session: str, items: List[Dict[str, Any]], keyname: str) -> Non
         logging.debug('Private key ID found')
 
         try:
-            ssh_add(session, item['id'], private_key_id)
+            ssh_add(session, item['id'], private_key_id, private_key_pw)
         except subprocess.SubprocessError:
             logging.warning('Could not add key to the SSH agent')
 
 
-def ssh_add(session: str, item_id: str, key_id: str) -> None:
+def ssh_add(session: str, item_id: str, key_id: str, key_pw: str) -> None:
     """
     Function to get the key contents from the Bitwarden vault
     """
@@ -200,10 +215,14 @@ def ssh_add(session: str, item_id: str, key_id: str) -> None:
         universal_newlines=True,
         check=True,
     )
-    ssh_key = proc_attachment.stdout
+    ssh_encrypted_key = proc_attachment.stdout
 
+    if key_pw:
+        ssh_key = decript_key(ssh_encrypted_key, key_pw)
+    else:
+        ssh_key = ssh_encrypted_key
+    
     logging.debug("Running ssh-add")
-
     # CAVEAT: `ssh-add` provides no useful output, even with maximum verbosity
     subprocess.run(
         ['ssh-add', '-'],
@@ -213,6 +232,31 @@ def ssh_add(session: str, item_id: str, key_id: str) -> None:
         universal_newlines=True,
         check=True,
     )
+
+def decript_key(encrypted_key: str, key_pw: str) -> str:
+    logging.debug("Trying to open key with paramiko")
+    import paramiko
+    from io import StringIO
+
+    ssh_encrypted_key = StringIO(encrypted_key)
+
+    # Iterating over possible key types
+    for pkey_class in (paramiko.RSAKey, paramiko.DSSKey, paramiko.ECDSAKey, paramiko.Ed25519Key):
+        try:
+            key = pkey_class.from_private_key(ssh_encrypted_key, key_pw)
+
+            logging.debug("Writing decripted key in buffer")
+            ssh_key = StringIO()
+            key.write_private_key(ssh_key)
+            ssh_key.seek(0)
+
+            return ssh_key.read()
+        except Exception as e:
+            saved_exception = e
+    if saved_exception is not None:
+            raise saved_exception
+    
+    
 
 
 if __name__ == '__main__':
@@ -239,6 +283,12 @@ if __name__ == '__main__':
             '--customfield',
             default='private',
             help='custom field name where private key filename is stored',
+        )
+        parser.add_argument(
+            '-p',
+            '--passphrasefield',
+            default='passphrase',
+            help='custom field name where key passphrase is stored'
         )
 
         return parser.parse_args()
@@ -269,7 +319,7 @@ if __name__ == '__main__':
             items = folder_items(session, folder_id)
 
             logging.info('Attempting to add keys to ssh-agent')
-            add_ssh_keys(session, items, args.customfield)
+            add_ssh_keys(session, items, args.customfield, args.passphrasefield)
         except subprocess.CalledProcessError as error:
             if error.stderr:
                 logging.error('`%s` error: %s', error.cmd[0], error.stderr)
