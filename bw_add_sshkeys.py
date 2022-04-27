@@ -218,7 +218,7 @@ def ssh_add(session: str, item_id: str, key_id: str, key_pw: str) -> None:
     ssh_key = proc_attachment.stdout
 
     if key_pw:
-        envdict = dict(os.environ, DISPLAY="1", SSH_ASKPASS=os.path.realpath(__file__), SSH_KEY_PASSPHRASE=key_pw)
+        envdict = dict(os.environ, SSH_ASKPASS=os.path.realpath(__file__), SSH_KEY_PASSPHRASE=key_pw)
     else:
         envdict = dict(os.environ, SSH_ASKPASS_REQUIRE="never")
     
