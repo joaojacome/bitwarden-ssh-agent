@@ -215,12 +215,12 @@ def ssh_add(session: str, item_id: str, key_id: str, key_pw: str) -> None:
         universal_newlines=True,
         check=True,
     )
-    ssh_encrypted_key = proc_attachment.stdout
+    ssh_key = proc_attachment.stdout
 
     if key_pw:
-        ssh_key = decript_key(ssh_encrypted_key, key_pw)
+        envdict = dict(os.environ, DISPLAY="1", SSH_ASKPASS=os.path.realpath(__file__), SSH_KEY_PASSPHRASE=key_pw)
     else:
-        ssh_key = ssh_encrypted_key
+        envdict = dict(os.environ, SSH_ASKPASS_REQUIRE="never")
     
     logging.debug("Running ssh-add")
     # CAVEAT: `ssh-add` provides no useful output, even with maximum verbosity
@@ -228,35 +228,10 @@ def ssh_add(session: str, item_id: str, key_id: str, key_pw: str) -> None:
         ['ssh-add', '-'],
         input=ssh_key,
         # Works even if ssh-askpass is not installed
-        env=dict(os.environ, SSH_ASKPASS_REQUIRE="never"),
+        env=envdict,
         universal_newlines=True,
         check=True,
-    )
-
-def decript_key(encrypted_key: str, key_pw: str) -> str:
-    logging.debug("Trying to open key with paramiko")
-    import paramiko
-    from io import StringIO
-
-    ssh_encrypted_key = StringIO(encrypted_key)
-
-    # Iterating over possible key types
-    for pkey_class in (paramiko.RSAKey, paramiko.DSSKey, paramiko.ECDSAKey, paramiko.Ed25519Key):
-        try:
-            key = pkey_class.from_private_key(ssh_encrypted_key, key_pw)
-
-            logging.debug("Writing decripted key in buffer")
-            ssh_key = StringIO()
-            key.write_private_key(ssh_key)
-            ssh_key.seek(0)
-
-            return ssh_key.read()
-        except Exception as e:
-            saved_exception = e
-    if saved_exception is not None:
-            raise saved_exception
-    
-    
+    )    
 
 
 if __name__ == '__main__':
@@ -325,4 +300,7 @@ if __name__ == '__main__':
                 logging.error('`%s` error: %s', error.cmd[0], error.stderr)
             logging.debug('Error running %s', error.cmd)
 
-    main()
+    if os.environ.get('SSH_ASKPASS'):
+        print(os.environ.get('SSH_KEY_PASSPHRASE'))
+    else:
+        main()
