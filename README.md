@@ -15,10 +15,14 @@ Fetches SSH keys stored in Bitwarden vault and adds them to `ssh-agent`.
 2. Enter your Bitwarden credentials, if a Bitwarden vault session is not already set.
 3. (optional) Enter your SSH keys' passphrases.
 
-
 ## Storing the keys in BitWarden
 1. Create a folder called `ssh-agent` (can be overridden on the command line).
 2. Add an new secure note to that folder.
 3. Upload the private key as an attachment.
 4. Add the custom field `private` (can be overridden on the command line), containing the file name of the private key attachment.
 5. Repeat steps 2-4 for each subsequent key
+
+## Command line overrides
+* `--debug`/`-d` - Show debug output
+* `--foldername`/`-f` - Folder name to use to search for SSH keys _(default: ssh-agent)_
+* `--customfield`/`-c` - Custom field name where private key filename is stored _(default: private)_
