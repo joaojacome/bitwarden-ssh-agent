@@ -135,16 +135,19 @@ def folder_items(session: str, folder_id: str) -> List[Dict[str, Any]]:
     return data
 
 
-def add_ssh_keys(session: str, items: List[Dict[str, Any]], keyname: str, pwkeyname: str) -> None:
+def add_ssh_keys(
+    session: str,
+    items: List[Dict[str, Any]],
+    keyname: str,
+    pwkeyname: str,
+) -> None:
     """
     Function to attempt to get keys from a vault item
     """
     for item in items:
         try:
             private_key_file = [
-                k['value']
-                for k in item['fields']
-                if k['name'] == keyname
+                k['value'] for k in item['fields'] if k['name'] == keyname
             ][0]
         except IndexError:
             logging.warning('No "%s" field found for item %s', keyname, item['name'])
@@ -159,9 +162,7 @@ def add_ssh_keys(session: str, items: List[Dict[str, Any]], keyname: str, pwkeyn
         private_key_pw = None
         try:
             private_key_pw = [
-                k['value']
-                for k in item['fields']
-                if k['name'] == pwkeyname
+                k['value'] for k in item['fields'] if k['name'] == pwkeyname
             ][0]
             logging.debug('Passphrase declared')
         except IndexError:
@@ -218,7 +219,11 @@ def ssh_add(session: str, item_id: str, key_id: str, key_pw: Optional[str]) -> N
     ssh_key = proc_attachment.stdout
 
     if key_pw:
-        envdict = dict(os.environ, SSH_ASKPASS=os.path.realpath(__file__), SSH_KEY_PASSPHRASE=key_pw)
+        envdict = dict(
+            os.environ,
+            SSH_ASKPASS=os.path.realpath(__file__),
+            SSH_KEY_PASSPHRASE=key_pw,
+        )
     else:
         envdict = dict(os.environ, SSH_ASKPASS_REQUIRE="never")
     
@@ -263,7 +268,7 @@ if __name__ == '__main__':
             '-p',
             '--passphrasefield',
             default='passphrase',
-            help='custom field name where key passphrase is stored'
+            help='custom field name where key passphrase is stored',
         )
 
         return parser.parse_args()
@@ -297,7 +302,7 @@ if __name__ == '__main__':
             add_ssh_keys(session, items, args.customfield, args.passphrasefield)
         except subprocess.CalledProcessError as error:
             if error.stderr:
-                logging.error('`%s` error: %s', error.cmd[0], error.stderr)
+                logging.error('"%s" error: %s', error.cmd[0], error.stderr)
             logging.debug('Error running %s', error.cmd)
 
     if os.environ.get('SSH_ASKPASS'):
