@@ -8,7 +8,7 @@ import json
 import logging
 import os
 import subprocess
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from pkg_resources import parse_version
 
@@ -192,7 +192,7 @@ def add_ssh_keys(session: str, items: List[Dict[str, Any]], keyname: str, pwkeyn
             logging.warning('Could not add key to the SSH agent')
 
 
-def ssh_add(session: str, item_id: str, key_id: str, key_pw: str) -> None:
+def ssh_add(session: str, item_id: str, key_id: str, key_pw: Optional[str]) -> None:
     """
     Function to get the key contents from the Bitwarden vault
     """
