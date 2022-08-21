@@ -226,7 +226,7 @@ def ssh_add(session: str, item_id: str, key_id: str, key_pw: Optional[str]) -> N
         )
     else:
         envdict = dict(os.environ, SSH_ASKPASS_REQUIRE="never")
-    
+
     logging.debug("Running ssh-add")
     # CAVEAT: `ssh-add` provides no useful output, even with maximum verbosity
     subprocess.run(
@@ -236,7 +236,7 @@ def ssh_add(session: str, item_id: str, key_id: str, key_pw: Optional[str]) -> N
         env=envdict,
         universal_newlines=True,
         check=True,
-    )    
+    )
 
 
 if __name__ == '__main__':
@@ -305,7 +305,7 @@ if __name__ == '__main__':
                 logging.error('"%s" error: %s', error.cmd[0], error.stderr)
             logging.debug('Error running %s', error.cmd)
 
-    if os.environ.get('SSH_ASKPASS'):
+    if os.environ.get('SSH_ASKPASS') and os.environ.get('SSH_ASKPASS') == os.path.realpath(__file__):
         print(os.environ.get('SSH_KEY_PASSPHRASE'))
     else:
         main()
