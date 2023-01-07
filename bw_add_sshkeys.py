@@ -56,12 +56,13 @@ def cli_supports(feature: str) -> bool:
     return False
 
 
-def get_session() -> str:
+def get_session(session: str) -> str:
     """
     Function to return a valid Bitwarden session
     """
     # Check for an existing, user-supplied Bitwarden session
-    session = os.environ.get('BW_SESSION', '')
+    if not session:
+        session = os.environ.get('BW_SESSION', '')
     if session:
         logging.debug('Existing Bitwarden session found')
         return session
@@ -101,6 +102,7 @@ def get_folders(session: str, foldername: str) -> str:
         stdout=subprocess.PIPE,
         universal_newlines=True,
         check=True,
+        encoding = "utf-8",
     )
 
     folders = json.loads(proc_folders.stdout)
@@ -128,6 +130,7 @@ def folder_items(session: str, folder_id: str) -> List[Dict[str, Any]]:
         stdout=subprocess.PIPE,
         universal_newlines=True,
         check=True,
+        encoding = "utf-8",
     )
 
     data: List[Dict[str, Any]] = json.loads(proc_items.stdout)
@@ -270,6 +273,12 @@ if __name__ == '__main__':
             default='passphrase',
             help='custom field name where key passphrase is stored',
         )
+        parser.add_argument(
+            '-s',
+            '--session',
+            default='',
+            help='session key of bitwarden',
+        )
 
         return parser.parse_args()
 
@@ -289,7 +298,7 @@ if __name__ == '__main__':
 
         try:
             logging.info('Getting Bitwarden session')
-            session = get_session()
+            session = get_session(args.session)
             logging.debug('Session = %s', session)
 
             logging.info('Getting folder list')
