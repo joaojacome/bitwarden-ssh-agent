@@ -1,4 +1,2 @@
 .pyenv/
 .mypy_cache/
-
-.vscode/*
