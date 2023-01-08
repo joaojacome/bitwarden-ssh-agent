@@ -375,6 +375,10 @@ if __name__ == '__main__':
         else:
             loglevel = logging.INFO
 
+        if args.session == "<redacted>":
+            logging.error("Error: You didn't specify a session key in .vscode/launch.json")
+            sys.exit(1)
+
         logging.basicConfig(level=loglevel)
 
         subprocess.run(
