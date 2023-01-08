@@ -7,12 +7,17 @@ import argparse
 import json
 import logging
 import os
+import sys
 import subprocess
 from typing import Any, Callable, Dict, List, Optional
+from cryptography.hazmat.primitives.serialization import load_ssh_private_key
+from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.hazmat.primitives.serialization import PublicFormat
 
 from pkg_resources import parse_version
 
-
+##################################################
+### Main Functions
 def memoize(func: Callable[..., Any]) -> Callable[..., Any]:
     """
     Decorator function to cache the results of another function call
@@ -28,21 +33,7 @@ def memoize(func: Callable[..., Any]) -> Callable[..., Any]:
 
     return memoized_func
 
-
-@memoize
-def bwcli_version() -> str:
-    """
-    Function to return the version of the Bitwarden CLI
-    """
-    proc_version = subprocess.run(
-        ['bw', '--version'],
-        stdout=subprocess.PIPE,
-        universal_newlines=True,
-        check=True,
-    )
-    return proc_version.stdout
-
-
+# maybe obsolete
 @memoize
 def cli_supports(feature: str) -> bool:
     """
@@ -138,11 +129,10 @@ def folder_items(session: str, folder_id: str) -> List[Dict[str, Any]]:
     return data
 
 
-def add_ssh_keys(
+def manage_ssh_keys(
     session: str,
-    items: List[Dict[str, Any]],
-    keyname: str,
-    pwkeyname: str,
+    args: argparse.Namespace,
+    items: List[Dict[str, Any]]
 ) -> None:
     """
     Function to attempt to get keys from a vault item
@@ -150,10 +140,10 @@ def add_ssh_keys(
     for item in items:
         try:
             private_key_file = [
-                k['value'] for k in item['fields'] if k['name'] == keyname
+                k['value'] for k in item['fields'] if k['name'] == args.customfield
             ][0]
         except IndexError:
-            logging.warning('No "%s" field found for item %s', keyname, item['name'])
+            logging.warning('No "%s" field found for item %s', args.customfield, item['name'])
             continue
         except KeyError as error:
             logging.debug(
@@ -165,11 +155,11 @@ def add_ssh_keys(
         private_key_pw = None
         try:
             private_key_pw = [
-                k['value'] for k in item['fields'] if k['name'] == pwkeyname
+                k['value'] for k in item['fields'] if k['name'] == args.passphrasefield
             ][0]
             logging.debug('Passphrase declared')
         except IndexError:
-            logging.warning('No "%s" field found for item %s', pwkeyname, item['name'])
+            logging.warning('No "%s" field found for item %s', args.passphrasefield, item['name'])
         except KeyError as error:
             logging.debug(
                 'No key "%s" found in item %s - skipping', error.args[0], item['name']
@@ -191,11 +181,15 @@ def add_ssh_keys(
         logging.debug('Private key ID found')
 
         try:
-            ssh_add(session, item['id'], private_key_id, private_key_pw)
+            if args.add and not args.remove:
+                ssh_add(session, item['id'], private_key_id, private_key_pw)
+            if args.remove and not args.add:
+                ssh_remove(session, item['id'], private_key_id, private_key_pw)
         except subprocess.SubprocessError:
             logging.warning('Could not add key to the SSH agent')
 
-
+##################################################
+### Sub-Functions called from within Main Functions
 def ssh_add(session: str, item_id: str, key_id: str, key_pw: Optional[str]) -> None:
     """
     Function to get the key contents from the Bitwarden vault
@@ -241,7 +235,76 @@ def ssh_add(session: str, item_id: str, key_id: str, key_pw: Optional[str]) -> N
         check=True,
     )
 
+def ssh_remove(session: str, item_id: str, key_id: str, key_pw: Optional[str]) -> None:
+    """
+    Function to get the key contents from the Bitwarden vault
+    """
+    logging.debug('Item ID: %s', item_id)
+    logging.debug('Key ID: %s', key_id)
 
+    proc_attachment = subprocess.run(
+        [
+            'bw',
+            'get',
+            'attachment',
+            key_id,
+            '--itemid',
+            item_id,
+            '--raw',
+            '--session',
+            session,
+        ],
+        stdout=subprocess.PIPE,
+        universal_newlines=True,
+        check=True,
+    )
+    ssh_key = str(proc_attachment.stdout)
+
+    if key_pw is None:
+        private_key_object = load_ssh_private_key(ssh_key.encode("ascii"),None)
+    else:
+        key_pw = key_pw.encode("utf-8")
+        private_key_object = load_ssh_private_key(ssh_key.encode("utf-8"),key_pw.encode("utf-8"))
+
+    public_key_object = (private_key_object.public_key()).public_bytes(Encoding.OpenSSH, PublicFormat.OpenSSH).decode("utf-8")
+
+    if key_pw:
+        envdict = dict(
+            os.environ,
+            SSH_ASKPASS=os.path.realpath(__file__),
+            SSH_KEY_PASSPHRASE=key_pw,
+        )
+    else:
+        envdict = dict(os.environ, SSH_ASKPASS_REQUIRE="never")
+
+    logging.debug("Running ssh-add")
+    # CAVEAT: `ssh-add` provides no useful output, even with maximum verbosity
+    subprocess.run(
+        ['ssh-add', '-d', '-'],
+        input=public_key_object,
+        # Works even if ssh-askpass is not installed
+        env=envdict,
+        universal_newlines=True,
+        check=True,
+    )
+
+
+
+@memoize
+def bwcli_version() -> str:
+    """
+    Function to return the version of the Bitwarden CLI
+    """
+    proc_version = subprocess.run(
+        ['bw', '--version'],
+        stdout=subprocess.PIPE,
+        universal_newlines=True,
+        check=True,
+    )
+    return proc_version.stdout
+
+##################################################
+### Main Function!
 if __name__ == '__main__':
 
     def parse_args() -> argparse.Namespace:
@@ -249,6 +312,16 @@ if __name__ == '__main__':
         Function to parse command line arguments
         """
         parser = argparse.ArgumentParser()
+        parser.add_argument(
+            '--add',
+            action='store_true',
+            help='DEFAULT: Add the specified ssh key to ssh-agent.'
+        )
+        parser.add_argument(
+            '--remove',
+            action='store_true',
+            help='Remove the specified ssh key to ssh-agent.'
+        )
         parser.add_argument(
             '-d',
             '--debug',
@@ -296,6 +369,17 @@ if __name__ == '__main__':
 
         logging.basicConfig(level=loglevel)
 
+        subprocess.run(
+            ['bw', 'sync'],
+            stdout=subprocess.PIPE,
+            universal_newlines=True,
+            check=True,
+        )
+
+        if args.add and args.remove:
+            logging.info('ERROR: --add and --remove are specified at the same time. Thats not alloweed.')
+            sys.exit(1)
+        
         try:
             logging.info('Getting Bitwarden session')
             session = get_session(args.session)
@@ -303,16 +387,17 @@ if __name__ == '__main__':
 
             logging.info('Getting folder list')
             folder_id = get_folders(session, args.foldername)
-
             logging.info('Getting folder items')
-            items = folder_items(session, folder_id)
 
+            items = folder_items(session, folder_id)
             logging.info('Attempting to add keys to ssh-agent')
-            add_ssh_keys(session, items, args.customfield, args.passphrasefield)
+
+            manage_ssh_keys(session, args, items)
         except subprocess.CalledProcessError as error:
             if error.stderr:
                 logging.error('"%s" error: %s', error.cmd[0], error.stderr)
             logging.debug('Error running %s', error.cmd)
+
 
     if os.environ.get('SSH_ASKPASS') and os.environ.get('SSH_ASKPASS') == os.path.realpath(__file__):
         print(os.environ.get('SSH_KEY_PASSPHRASE'))
