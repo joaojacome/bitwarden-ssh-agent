@@ -153,17 +153,20 @@ def manage_ssh_keys(
         logging.debug('Private key file declared')
 
         private_key_pw = None
-        try:
-            private_key_pw = [
-                k['value'] for k in item['fields'] if k['name'] == args.passphrasefield
-            ][0]
-            logging.debug('Passphrase declared')
-        except IndexError:
-            logging.warning('No "%s" field found for item %s', args.passphrasefield, item['name'])
-        except KeyError as error:
-            logging.debug(
-                'No key "%s" found in item %s - skipping', error.args[0], item['name']
-            )
+        if not args.password_as_key_pass:
+            try:
+                private_key_pw = [
+                    k['value'] for k in item['fields'] if k['name'] == args.passphrasefield
+                ][0]
+                logging.debug('Passphrase declared')
+            except IndexError:
+                logging.warning('No "%s" field found for item %s', args.passphrasefield, item['name'])
+            except KeyError as error:
+                logging.debug(
+                    'No key "%s" found in item %s - skipping', error.args[0], item['name']
+                )
+        else:
+            private_key_pw = item['login']['password']
 
         try:
             private_key_id = [
@@ -347,6 +350,11 @@ if __name__ == '__main__':
             help='custom field name where key passphrase is stored',
         )
         parser.add_argument(
+            '--password-as-key-pass',
+            action='store_true',
+            help='Use normal password field as SSH Key Password',
+        )
+        parser.add_argument(
             '-s',
             '--session',
             default='',
@@ -391,8 +399,7 @@ if __name__ == '__main__':
 
             items = folder_items(session, folder_id)
             logging.info('Attempting to add keys to ssh-agent')
-
-            manage_ssh_keys(session, args, items)
+            manage_ssh_keys(session, items, args)
         except subprocess.CalledProcessError as error:
             if error.stderr:
                 logging.error('"%s" error: %s', error.cmd[0], error.stderr)
