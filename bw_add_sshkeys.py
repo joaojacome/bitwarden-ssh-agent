@@ -403,7 +403,7 @@ if __name__ == '__main__':
 
             items = folder_items(session, folder_id)
             logging.info('Attempting to add keys to ssh-agent')
-            manage_ssh_keys(session, items, args)
+            manage_ssh_keys(session, args, items)
         except subprocess.CalledProcessError as error:
             if error.stderr:
                 logging.error('"%s" error: %s', error.cmd[0], error.stderr)
