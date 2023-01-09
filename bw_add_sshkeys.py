@@ -137,18 +137,41 @@ def manage_ssh_keys(
     """
     Function to attempt to get keys from a vault item
     """
-    for item in items:
+    privatekey_found = False
+    for index,item in enumerate(items, start=1):
         try:
-            private_key_file = [
-                k['value'] for k in item['fields'] if k['name'] == args.customfield
-            ][0]
+            # IF we have a name specified, skip until the entry is found
+            #
+            if not args.entryname is None:
+
+                if item['name'] == args.entryname:
+                    logging.info("Requested Entry %s found", item['name'])
+                else:
+                    logging.debug("Skipping entry %s as it was not requested", item['name'])
+                    if not privatekey_found and index >= len(items):
+                        logging.error("Sadly the requested entry could not be found. Exiting now...")
+                    continue
+                
+                if args.assume_keyname:
+                    private_key_file = args.entryname
+                    privatekey_found = True
+                else:
+                    private_key_file = [
+                        k['value'] for k in item['fields'] if k['name'] == args.customfield
+                    ][0]
+                    privatekey_found = True
+            else:
+                private_key_file = [
+                    k['value'] for k in item['fields'] if k['name'] == args.customfield
+                ][0]
         except IndexError:
-            logging.warning('No "%s" field found for item %s', args.customfield, item['name'])
+            logging.info('No "%s" field found for item %s - skipping', args.customfield, item['name'])
             continue
         except KeyError as error:
-            logging.debug(
-                'No key "%s" found in item %s - skipping', error.args[0], item['name']
-            )
+            logging.debug('No key "%s" found in item %s - skipping', error.args[0], item['name'])
+            if not args.assume_keyname:
+                logging.error("No additional fields are specified for your entryname. Exiting now...")
+                break
             continue
         logging.debug('Private key file declared')
 
@@ -160,7 +183,7 @@ def manage_ssh_keys(
                 ][0]
                 logging.debug('Passphrase declared')
             except IndexError:
-                logging.warning('No "%s" field found for item %s', args.passphrasefield, item['name'])
+                logging.warning('No "%s" field found for item %s - if ssh key needs password this is an error!', args.passphrasefield, item['name'])
             except KeyError as error:
                 logging.debug(
                     'No key "%s" found in item %s - skipping', error.args[0], item['name']
@@ -190,6 +213,9 @@ def manage_ssh_keys(
                 ssh_remove(session, item['id'], private_key_id, private_key_pw)
         except subprocess.SubprocessError:
             logging.warning('Could not add key to the SSH agent')
+
+        if privatekey_found:
+            break
 
 ##################################################
 ### Sub-Functions called from within Main Functions
@@ -326,6 +352,15 @@ if __name__ == '__main__':
             help='Remove the specified ssh key to ssh-agent.'
         )
         parser.add_argument(
+            '--entryname',
+            help='Specify the name of the bitwarden entry to add/remove from ssh-agent.'
+        )
+        parser.add_argument(
+            '--assume-keyname',
+            action='store_true',
+            help='Assume the private key file is named identical to bitwarden entry.'
+        )
+        parser.add_argument(
             '-d',
             '--debug',
             action='store_true',
@@ -381,6 +416,7 @@ if __name__ == '__main__':
 
         logging.basicConfig(level=loglevel)
 
+        logging.info("Syncing Bitwarden")
         subprocess.run(
             ['bw', 'sync'],
             stdout=subprocess.PIPE,
