@@ -292,7 +292,6 @@ def ssh_remove(session: str, item_id: str, key_id: str, key_pw: Optional[str]) -
     if key_pw is None:
         private_key_object = load_ssh_private_key(ssh_key.encode("ascii"),None)
     else:
-        key_pw = key_pw.encode("utf-8")
         private_key_object = load_ssh_private_key(ssh_key.encode("utf-8"),key_pw.encode("utf-8"))
 
     public_key_object = (private_key_object.public_key()).public_bytes(Encoding.OpenSSH, PublicFormat.OpenSSH).decode("utf-8")
