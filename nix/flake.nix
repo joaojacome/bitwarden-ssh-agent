@@ -9,24 +9,27 @@
       systems = [ "x86_64-linux" "aarch64-darwin" ];
       perSystem = { config, self', inputs', pkgs, system, ... }: {
         overlayAttrs = {
-          inherit (config.packages) default;
+          inherit (config.packages) bitwarden-ssh-agent;
         };
-        packages.default = pkgs.python3Packages.buildPythonPackage rec {
-          pname = "bitwarden-ssh-agent";
-          version = "0.1.0";
-          src = ./.. ;
-          propagatedBuildInputs = [ pkgs.python3Packages.setuptools pkgs.bitwarden-cli ];
-          format = "other";
-          installPhase = ''
-            mkdir -p $out/bin/
-            mv bw_add_sshkeys.py $out/bin/bitwarden-ssh-agent
-            chmod +x $out/bin/bitwarden-ssh-agent
-          '';
-          meta = with pkgs.lib; {
-            description = "Small python script to load bitwarden-store ssh keys into ssh-agent";
-            homepage = "https://github.com/joaojacome/bitwarden-ssh-agent";
-            license = licenses.mit;
+        packages = rec {
+          bitwarden-ssh-agent = pkgs.python3Packages.buildPythonPackage rec {
+            pname = "bitwarden-ssh-agent";
+            version = "0.1.0";
+            src = ./.. ;
+            propagatedBuildInputs = [ pkgs.python3Packages.setuptools pkgs.bitwarden-cli ];
+            format = "other";
+            installPhase = ''
+              mkdir -p $out/bin/
+              mv bw_add_sshkeys.py $out/bin/bitwarden-ssh-agent
+              chmod +x $out/bin/bitwarden-ssh-agent
+            '';
+            meta = with pkgs.lib; {
+              description = "Small python script to load bitwarden-store ssh keys into ssh-agent";
+              homepage = "https://github.com/joaojacome/bitwarden-ssh-agent";
+              license = licenses.mit;
+            };
           };
+          default = bitwarden-ssh-agent;
         };
         devShells.default = pkgs.mkShell {
           packages = [
