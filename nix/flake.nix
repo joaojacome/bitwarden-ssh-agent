@@ -8,6 +8,9 @@
       ];
       systems = [ "x86_64-linux" "aarch64-darwin" ];
       perSystem = { config, self', inputs', pkgs, system, ... }: {
+        overlayAttrs = {
+          inherit (config.packages) default;
+        };
         packages.default = pkgs.python3Packages.buildPythonPackage rec {
           pname = "bitwarden-ssh-agent";
           version = "0.1.0";
