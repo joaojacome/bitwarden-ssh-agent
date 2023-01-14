@@ -7,12 +7,9 @@
         inputs.flake-parts.flakeModules.easyOverlay
       ];
       systems = [ "x86_64-linux" "aarch64-darwin" ];
-      perSystem = { config, self', inputs', pkgs, system, ... }: {
-        overlayAttrs = {
-          inherit (config.packages) bitwarden-ssh-agent;
-        };
-        packages = rec {
-          bitwarden-ssh-agent = pkgs.python3Packages.buildPythonPackage rec {
+      perSystem = { config, self', inputs', pkgs, system, ... }:
+        let
+          package = pkgs.python3Packages.buildPythonPackage {
             pname = "bitwarden-ssh-agent";
             version = "0.1.0";
             src = ./.. ;
@@ -29,16 +26,19 @@
               license = licenses.mit;
             };
           };
-          default = bitwarden-ssh-agent;
-        };
-        devShells.default = pkgs.mkShell {
-          packages = [
-            pkgs.bitwarden-cli
-            (pkgs.python3.withPackages(pkgs: [
-                pkgs.setuptools
-            ]))
-          ];
+        in {
+          overlayAttrs = {
+            bitwarden-ssh-agent = package;
+          };
+          packages.default = package;
+          devShells.default = pkgs.mkShell {
+            packages = [
+              pkgs.bitwarden-cli
+              (pkgs.python3.withPackages(pkgs: [
+                  pkgs.setuptools
+              ]))
+            ];
+          };
         };
       };
-    };
 }
