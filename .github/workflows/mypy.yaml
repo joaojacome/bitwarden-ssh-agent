@@ -1,0 +1,25 @@
+name: mypy
+
+on:
+  push:
+    branches:
+    - master
+  pull_request: {}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10' 
+      - name: Install mypy
+        run: |
+          pip install --upgrade pip
+          python3.10 -m venv env
+          source env/bin/activate
+          pip install mypy types-setuptools
+      - name: Run black
+        run: |
+          env/bin/mypy bw_add_sshkeys.py

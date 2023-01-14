@@ -1,2 +1,3 @@
 .pyenv/
 .mypy_cache/
+env/

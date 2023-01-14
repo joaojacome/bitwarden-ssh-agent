@@ -1,0 +1,25 @@
+name: flake8
+
+on:
+  push:
+    branches:
+    - master
+  pull_request: {}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10' 
+      - name: Install flake8
+        run: |
+          pip install --upgrade pip
+          python3.10 -m venv env
+          source env/bin/activate
+          pip install flake8
+      - name: Run black
+        run: |
+          env/bin/flake8 bw_add_sshkeys.py
