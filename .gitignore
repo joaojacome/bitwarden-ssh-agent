@@ -1,2 +1,3 @@
 .pyenv/
 .mypy_cache/
+.vscode/launch.json
