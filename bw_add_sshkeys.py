@@ -234,10 +234,10 @@ def ssh_add(session: str, item_id: str, key_id: str, key_pw: Optional[str]) -> N
     # CAVEAT: `ssh-add` provides no useful output, even with maximum verbosity
     subprocess.run(
         ["ssh-add", "-"],
-        input=ssh_key,
+        input=ssh_key.encode("utf-8"),
         # Works even if ssh-askpass is not installed
         env=envdict,
-        universal_newlines=True,
+        universal_newlines=False,
         check=True,
     )
 
