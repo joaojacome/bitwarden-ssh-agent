@@ -10,8 +10,6 @@ import os
 import subprocess
 from typing import Any, Callable
 
-from pkg_resources import parse_version
-
 
 def memoize(func: Callable[..., Any]) -> Callable[..., Any]:
     """
@@ -27,33 +25,6 @@ def memoize(func: Callable[..., Any]) -> Callable[..., Any]:
         return result
 
     return memoized_func
-
-
-@memoize
-def bwcli_version() -> str:
-    """
-    Function to return the version of the Bitwarden CLI
-    """
-    proc_version = subprocess.run(
-        ["bw", "--version"],
-        stdout=subprocess.PIPE,
-        universal_newlines=True,
-        check=True,
-    )
-    return proc_version.stdout
-
-
-@memoize
-def cli_supports(feature: str) -> bool:
-    """
-    Function to return whether the current Bitwarden CLI supports a particular
-    feature
-    """
-    version = parse_version(bwcli_version())
-
-    if feature == "nointeraction" and version >= parse_version("1.9.0"):
-        return True
-    return False
 
 
 def get_session(session: str) -> str:
