@@ -8,16 +8,14 @@ import json
 import logging
 import os
 import subprocess
-from typing import Any, Callable, Dict, List, Optional
-
-from pkg_resources import parse_version
+from typing import Any, Callable
 
 
 def memoize(func: Callable[..., Any]) -> Callable[..., Any]:
     """
     Decorator function to cache the results of another function call
     """
-    cache: Dict[Any, Callable[..., Any]] = {}
+    cache: dict[Any, Callable[..., Any]] = {}
 
     def memoized_func(*args: Any) -> Any:
         if args in cache:
@@ -27,33 +25,6 @@ def memoize(func: Callable[..., Any]) -> Callable[..., Any]:
         return result
 
     return memoized_func
-
-
-@memoize
-def bwcli_version() -> str:
-    """
-    Function to return the version of the Bitwarden CLI
-    """
-    proc_version = subprocess.run(
-        ["bw", "--version"],
-        stdout=subprocess.PIPE,
-        universal_newlines=True,
-        check=True,
-    )
-    return proc_version.stdout
-
-
-@memoize
-def cli_supports(feature: str) -> bool:
-    """
-    Function to return whether the current Bitwarden CLI supports a particular
-    feature
-    """
-    version = parse_version(bwcli_version())
-
-    if feature == "nointeraction" and version >= parse_version("1.9.0"):
-        return True
-    return False
 
 
 def get_session(session: str) -> str:
@@ -119,7 +90,7 @@ def get_folders(session: str, foldername: str) -> str:
     return str(folders[0]["id"])
 
 
-def folder_items(session: str, folder_id: str) -> List[Dict[str, Any]]:
+def folder_items(session: str, folder_id: str) -> list[dict[str, Any]]:
     """
     Function to return items from a folder
     """
@@ -133,14 +104,14 @@ def folder_items(session: str, folder_id: str) -> List[Dict[str, Any]]:
         encoding="utf-8",
     )
 
-    data: List[Dict[str, Any]] = json.loads(proc_items.stdout)
+    data: list[dict[str, Any]] = json.loads(proc_items.stdout)
 
     return data
 
 
 def add_ssh_keys(
     session: str,
-    items: List[Dict[str, Any]],
+    items: list[dict[str, Any]],
     keyname: str,
     pwkeyname: str,
 ) -> None:
@@ -162,7 +133,7 @@ def add_ssh_keys(
             continue
         logging.debug("Private key file declared")
 
-        private_key_pw = None
+        private_key_pw = ""
         try:
             private_key_pw = [
                 k["value"] for k in item["fields"] if k["name"] == pwkeyname
@@ -196,7 +167,7 @@ def add_ssh_keys(
             logging.warning("Could not add key to the SSH agent")
 
 
-def ssh_add(session: str, item_id: str, key_id: str, key_pw: Optional[str]) -> None:
+def ssh_add(session: str, item_id: str, key_id: str, key_pw: str = "") -> None:
     """
     Function to get the key contents from the Bitwarden vault
     """
