@@ -29,3 +29,4 @@ Fetches SSH keys stored in Bitwarden vault and adds them to `ssh-agent`.
 * `--customfield`/`-c` - Custom field name where private key filename is stored _(default: private)_
 * `--passphrasefield`/`-p` - Custom field name where passphrase for the key is stored _(default: passphrase)_
 * `--session`/`-s` - session key of bitwarden
+* `--lifetime`/`-t` - Maximum sshd lifetime (e.g. 60s, 30m, 2h30m) of keys; defaults to 4h
