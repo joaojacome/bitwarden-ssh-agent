@@ -8,23 +8,7 @@ import json
 import logging
 import os
 import subprocess
-from typing import Any, Callable
-
-
-def memoize(func: Callable[..., Any]) -> Callable[..., Any]:
-    """
-    Decorator function to cache the results of another function call
-    """
-    cache: dict[Any, Callable[..., Any]] = {}
-
-    def memoized_func(*args: Any) -> Any:
-        if args in cache:
-            return cache[args]
-        result = func(*args)
-        cache[args] = result
-        return result
-
-    return memoized_func
+from typing import Any
 
 
 def get_session(session: str) -> str:
