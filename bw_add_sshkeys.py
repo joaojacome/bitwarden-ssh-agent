@@ -8,7 +8,7 @@ import json
 import logging
 import os
 import subprocess
-from typing import Any, Callable
+from typing import Any
 
 
 def get_session(session: str) -> str:
