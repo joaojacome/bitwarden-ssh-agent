@@ -208,7 +208,7 @@ def manage_ssh_keys(
 
         try:
             if args.add and not args.remove:
-                ssh_add(session, item['id'], private_key_id, private_key_pw)
+                ssh_add(session, item['id'], private_key_id, private_key_pw, args.entryname, args.assume_destination_constraint, args.lifetime)
             if args.remove and not args.add:
                 ssh_remove(session, item['id'], private_key_id, private_key_pw)
         except subprocess.SubprocessError:
@@ -219,7 +219,7 @@ def manage_ssh_keys(
 
 ##################################################
 ### Sub-Functions called from within Main Functions
-def ssh_add(session: str, item_id: str, key_id: str, key_pw: Optional[str]) -> None:
+def ssh_add(session: str, item_id: str, key_id: str, key_pw: Optional[str], entryname: str, assume_destination_constraint: bool, lifetime: str) -> None:
     """
     Function to get the key contents from the Bitwarden vault
     """
@@ -255,8 +255,21 @@ def ssh_add(session: str, item_id: str, key_id: str, key_pw: Optional[str]) -> N
 
     logging.debug("Running ssh-add")
     # CAVEAT: `ssh-add` provides no useful output, even with maximum verbosity
+
+    cmdarray=['ssh-add']
+
+    if assume_destination_constraint:
+        cmdarray.append('-h')
+        cmdarray.append(entryname)
+    
+    if lifetime:
+        cmdarray.append('-t')
+        cmdarray.append(lifetime)
+
+    cmdarray.append('-')
+
     subprocess.run(
-        ['ssh-add', '-'],
+        cmdarray,
         input=ssh_key,
         # Works even if ssh-askpass is not installed
         env=envdict,
@@ -360,6 +373,11 @@ if __name__ == '__main__':
             help='Assume the private key file is named identical to bitwarden entry.'
         )
         parser.add_argument(
+            '--assume-destination-constraint',
+            action='store_false',
+            help='Assume the private key should only be used for the hostname its name points to.'
+        )
+        parser.add_argument(
             '-d',
             '--debug',
             action='store_true',
@@ -394,6 +412,12 @@ if __name__ == '__main__':
             default='',
             help='session key of bitwarden',
         )
+        parser.add_argument(
+            '-t',
+            '--lifetime',
+            default='15',
+            help='key lifetime in ssh-agent',
+        )
 
         return parser.parse_args()
 
@@ -416,12 +440,15 @@ if __name__ == '__main__':
         logging.basicConfig(level=loglevel)
 
         logging.info("Syncing Bitwarden")
-        subprocess.run(
-            ['bw', 'sync'],
-            stdout=subprocess.PIPE,
-            universal_newlines=True,
-            check=True,
-        )
+        try:
+            subprocess.run(
+                ['bw', 'sync'],
+                stdout=subprocess.PIPE,
+                universal_newlines=True,
+                check=True,
+            )
+        except:
+            logging.warning('WARNING! Can\'t sync Bitwarden Vault. We seem to be offline here.')
 
         if args.add and args.remove:
             logging.info('ERROR: --add and --remove are specified at the same time. Thats not alloweed.')
