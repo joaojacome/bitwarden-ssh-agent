@@ -105,37 +105,27 @@ def add_ssh_keys(
     """
     for item in items:
         try:
-            private_key_file = [
-                k["value"] for k in item["fields"] if k["name"] == keyname
-            ][0]
+            private_key_file = [k["value"] for k in item["fields"] if k["name"] == keyname][0]
         except IndexError:
             logging.warning('No "%s" field found for item %s', keyname, item["name"])
             continue
         except KeyError as error:
-            logging.debug(
-                'No key "%s" found in item %s - skipping', error.args[0], item["name"]
-            )
+            logging.debug('No key "%s" found in item %s - skipping', error.args[0], item["name"])
             continue
         logging.debug("Private key file declared")
 
         private_key_pw = ""
         try:
-            private_key_pw = [
-                k["value"] for k in item["fields"] if k["name"] == pwkeyname
-            ][0]
+            private_key_pw = [k["value"] for k in item["fields"] if k["name"] == pwkeyname][0]
             logging.debug("Passphrase declared")
         except IndexError:
             logging.warning('No "%s" field found for item %s', pwkeyname, item["name"])
         except KeyError as error:
-            logging.debug(
-                'No key "%s" found in item %s - skipping', error.args[0], item["name"]
-            )
+            logging.debug('No key "%s" found in item %s - skipping', error.args[0], item["name"])
 
         try:
             private_key_id = [
-                k["id"]
-                for k in item["attachments"]
-                if k["fileName"] == private_key_file
+                k["id"] for k in item["attachments"] if k["fileName"] == private_key_file
             ][0]
         except IndexError:
             logging.warning(
@@ -191,7 +181,6 @@ def ssh_add(session: str, item_id: str, key_id: str, lifetime: str, key_pw: str 
     subprocess.run(
         ["ssh-add", "-t", lifetime, "-"],
         input=ssh_key.encode("utf-8"),
-
         # Works even if ssh-askpass is not installed
         env=envdict,
         universal_newlines=False,
@@ -277,9 +266,9 @@ if __name__ == "__main__":
                 logging.error('"%s" error: %s', error.cmd[0], error.stderr)
             logging.debug("Error running %s", error.cmd)
 
-    if os.environ.get("SSH_ASKPASS") and os.environ.get(
-        "SSH_ASKPASS"
-    ) == os.path.realpath(__file__):
+    if os.environ.get("SSH_ASKPASS") and os.environ.get("SSH_ASKPASS") == os.path.realpath(
+        __file__
+    ):
         print(os.environ.get("SSH_KEY_PASSPHRASE"))
     else:
         main()
