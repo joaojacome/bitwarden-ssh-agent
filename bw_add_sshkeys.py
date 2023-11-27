@@ -105,27 +105,41 @@ def add_ssh_keys(
     """
     for item in items:
         try:
-            private_key_file = [k["value"] for k in item["fields"] if k["name"] == keyname][0]
+            private_key_file = [
+                k["value"] for k in item["fields"] if k["name"] == keyname
+            ][0]
         except IndexError:
             logging.warning('No "%s" field found for item %s', keyname, item["name"])
             continue
         except KeyError as error:
-            logging.debug('No key "%s" found in item %s - skipping', error.args[0], item["name"])
+            logging.debug(
+                'No key "%s" found in item %s - skipping',
+                error.args[0],
+                item["name"],
+            )
             continue
         logging.debug("Private key file declared")
 
         private_key_pw = ""
         try:
-            private_key_pw = [k["value"] for k in item["fields"] if k["name"] == pwkeyname][0]
+            private_key_pw = [
+                k["value"] for k in item["fields"] if k["name"] == pwkeyname
+            ][0]
             logging.debug("Passphrase declared")
         except IndexError:
             logging.warning('No "%s" field found for item %s', pwkeyname, item["name"])
         except KeyError as error:
-            logging.debug('No key "%s" found in item %s - skipping', error.args[0], item["name"])
+            logging.debug(
+                'No key "%s" found in item %s - skipping',
+                error.args[0],
+                item["name"],
+            )
 
         try:
             private_key_id = [
-                k["id"] for k in item["attachments"] if k["fileName"] == private_key_file
+                k["id"]
+                for k in item["attachments"]
+                if k["fileName"] == private_key_file
             ][0]
         except IndexError:
             logging.warning(
@@ -142,7 +156,9 @@ def add_ssh_keys(
             logging.warning("Could not add key to the SSH agent")
 
 
-def ssh_add(session: str, item_id: str, key_id: str, lifetime: str, key_pw: str = "") -> None:
+def ssh_add(
+    session: str, item_id: str, key_id: str, lifetime: str, key_pw: str = ""
+) -> None:
     """
     Function to get the key contents from the Bitwarden vault
     """
@@ -260,15 +276,21 @@ if __name__ == "__main__":
             items = folder_items(session, folder_id)
 
             logging.info("Attempting to add keys to ssh-agent")
-            add_ssh_keys(session, items, args.customfield, args.lifetime, args.passphrasefield)
+            add_ssh_keys(
+                session,
+                items,
+                args.customfield,
+                args.lifetime,
+                args.passphrasefield,
+            )
         except subprocess.CalledProcessError as error:
             if error.stderr:
                 logging.error('"%s" error: %s', error.cmd[0], error.stderr)
             logging.debug("Error running %s", error.cmd)
 
-    if os.environ.get("SSH_ASKPASS") and os.environ.get("SSH_ASKPASS") == os.path.realpath(
-        __file__
-    ):
+    if os.environ.get("SSH_ASKPASS") and os.environ.get(
+        "SSH_ASKPASS"
+    ) == os.path.realpath(__file__):
         print(os.environ.get("SSH_KEY_PASSPHRASE"))
     else:
         main()
