@@ -97,6 +97,7 @@ def add_ssh_keys(
     session: str,
     items: list[dict[str, Any]],
     keyname: str,
+    lifetime: str,
     pwkeyname: str,
 ) -> None:
     """
@@ -112,7 +113,9 @@ def add_ssh_keys(
             continue
         except KeyError as error:
             logging.debug(
-                'No key "%s" found in item %s - skipping', error.args[0], item["name"]
+                'No key "%s" found in item %s - skipping',
+                error.args[0],
+                item["name"],
             )
             continue
         logging.debug("Private key file declared")
@@ -127,7 +130,9 @@ def add_ssh_keys(
             logging.warning('No "%s" field found for item %s', pwkeyname, item["name"])
         except KeyError as error:
             logging.debug(
-                'No key "%s" found in item %s - skipping', error.args[0], item["name"]
+                'No key "%s" found in item %s - skipping',
+                error.args[0],
+                item["name"],
             )
 
         try:
@@ -146,12 +151,14 @@ def add_ssh_keys(
         logging.debug("Private key ID found")
 
         try:
-            ssh_add(session, item["id"], private_key_id, private_key_pw)
+            ssh_add(session, item["id"], private_key_id, lifetime, private_key_pw)
         except subprocess.SubprocessError:
             logging.warning("Could not add key to the SSH agent")
 
 
-def ssh_add(session: str, item_id: str, key_id: str, key_pw: str = "") -> None:
+def ssh_add(
+    session: str, item_id: str, key_id: str, lifetime: str, key_pw: str = ""
+) -> None:
     """
     Function to get the key contents from the Bitwarden vault
     """
@@ -188,7 +195,7 @@ def ssh_add(session: str, item_id: str, key_id: str, key_pw: str = "") -> None:
     logging.debug("Running ssh-add")
     # CAVEAT: `ssh-add` provides no useful output, even with maximum verbosity
     subprocess.run(
-        ["ssh-add", "-"],
+        ["ssh-add", "-t", lifetime, "-"],
         input=ssh_key.encode("utf-8"),
         # Works even if ssh-askpass is not installed
         env=envdict,
@@ -234,6 +241,12 @@ if __name__ == "__main__":
             default="",
             help="session key of bitwarden",
         )
+        parser.add_argument(
+            "-t",
+            "--lifetime",
+            default="4h",
+            help="maximum sshd lifetime (e.g. 60s, 30m, 2h30m) of keys; defaults to 4h",
+        )
 
         return parser.parse_args()
 
@@ -263,7 +276,13 @@ if __name__ == "__main__":
             items = folder_items(session, folder_id)
 
             logging.info("Attempting to add keys to ssh-agent")
-            add_ssh_keys(session, items, args.customfield, args.passphrasefield)
+            add_ssh_keys(
+                session,
+                items,
+                args.customfield,
+                args.lifetime,
+                args.passphrasefield,
+            )
         except subprocess.CalledProcessError as error:
             if error.stderr:
                 logging.error('"%s" error: %s', error.cmd[0], error.stderr)

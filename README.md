@@ -32,6 +32,7 @@ Fetches SSH keys stored in Bitwarden vault and adds them to `ssh-agent`.
 * `--customfield`/`-c` - Custom field name where private key filename is stored _(default: private)_
 * `--passphrasefield`/`-p` - Custom field name where passphrase for the key is stored _(default: passphrase)_
 * `--session`/`-s` - session key of bitwarden
+* `--lifetime`/`-t` - Maximum sshd lifetime (e.g. 60s, 30m, 2h30m) of keys; defaults to 4h
 
 ## Setting up the Bitwarden CLI tool
 Download the [Bitwarden CLI](https://bitwarden.com/help/cli/), extract the binary from the zip file, make it executable and add it to your path so that it can be found on the command line.
