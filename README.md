@@ -3,6 +3,7 @@
 ## Requirements
 * You need to have the [Bitwarden CLI tool](https://bitwarden.com/help/cli/) installed and available in the `$PATH` as `bw`. See below for detailed instructions.
 * `ssh-agent` must be running in the current session.
+* the bitwarden free version it's not supported.
 
 ## Installation
 Just save the file `bw_add_sshkeys.py` in a folder where it can by found when calling it from the command line. On linux you can see these folders by running `echo $PATH` from the command line. To install for a single user, you can - for example - save the script under `~/.local/bin/` and make it executable by running `chmod +x ~/.local/bin/bw_add_sshkeys.py`.
