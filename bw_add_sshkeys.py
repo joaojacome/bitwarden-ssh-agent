@@ -99,7 +99,7 @@ def add_ssh_keys(
     Function to attempt to get keys from a vault item
     """
     for item in items:
-        logging.info('----------------------------------')
+        logging.info("----------------------------------")
         logging.info('Processing item "%s"', item["name"])
         try:
             ssh_key = fetch_key(session, item, keyname)
