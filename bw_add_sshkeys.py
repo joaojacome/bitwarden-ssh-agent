@@ -140,7 +140,7 @@ def fetch_key(session: str, item: dict[str, Any], keyname: str) -> str:
         except RuntimeError as error:
             logging.error(str(error))
 
-    logging.warning("Falling back to notes")
+    logging.debug("Couldn't find an ssh key in attachments - falling back to notes")
 
     # no way to validate the key without extra dependencies
     # maybe check if the key starts with '----'?
