@@ -62,16 +62,12 @@ def get_folders(session: str, foldername: str) -> str:
 
     folders = json.loads(proc_folders.stdout)
 
-    if not folders:
-        logging.error('"%s" folder not found', foldername)
-        return ""
+    try:
+        return str([k["id"] for k in folders if k["name"] == foldername][0])
+    except IndexError:
+        pass
 
-    # Do we have any folders
-    if len(folders) != 1:
-        logging.error('%d folders with the name "%s" found', len(folders), foldername)
-        return ""
-
-    return str(folders[0]["id"])
+    raise RuntimeError('"%s" folder not found' % foldername)
 
 
 def folder_items(session: str, folder_id: str) -> list[dict[str, Any]]:
@@ -103,79 +99,115 @@ def add_ssh_keys(
     Function to attempt to get keys from a vault item
     """
     for item in items:
+        logging.info("----------------------------------")
+        logging.info('Processing item "%s"', item["name"])
         try:
-            private_key_file = [
-                k["value"] for k in item["fields"] if k["name"] == keyname
-            ][0]
-        except IndexError:
-            logging.warning('No "%s" field found for item %s', keyname, item["name"])
+            ssh_key = fetch_key(session, item, keyname)
+        except RuntimeError as error:
+            logging.error(str(error))
             continue
-        except KeyError as error:
-            logging.debug(
-                'No key "%s" found in item %s - skipping', error.args[0], item["name"]
-            )
-            continue
-        logging.debug("Private key file declared")
 
         private_key_pw = ""
-        try:
-            private_key_pw = [
-                k["value"] for k in item["fields"] if k["name"] == pwkeyname
-            ][0]
-            logging.debug("Passphrase declared")
-        except IndexError:
-            logging.warning('No "%s" field found for item %s', pwkeyname, item["name"])
-        except KeyError as error:
-            logging.debug(
-                'No key "%s" found in item %s - skipping', error.args[0], item["name"]
-            )
+
+        if "fields" in item:
+            try:
+                private_key_pw = [
+                    k["value"] for k in item["fields"] if k["name"] == pwkeyname
+                ][0]
+                logging.debug("Passphrase declared")
+            except IndexError:
+                logging.warning(
+                    'No "%s" field found for item %s', pwkeyname, item["name"]
+                )
 
         try:
-            private_key_id = [
-                k["id"]
-                for k in item["attachments"]
-                if k["fileName"] == private_key_file
-            ][0]
-        except IndexError:
-            logging.warning(
-                'No attachment called "%s" found for item %s',
-                private_key_file,
-                item["name"],
-            )
-            continue
-        logging.debug("Private key ID found")
-
-        try:
-            ssh_add(session, item["id"], private_key_id, private_key_pw)
+            ssh_add(ssh_key, private_key_pw)
         except subprocess.SubprocessError:
-            logging.warning("Could not add key to the SSH agent")
+            logging.warning('Could not add key "%s" to the SSH agent', item["name"])
 
 
-def ssh_add(session: str, item_id: str, key_id: str, key_pw: str = "") -> None:
+def fetch_key(session: str, item: dict[str, Any], keyname: str) -> str:
+    if "fields" in item and "attachments" in item:
+        logging.debug(
+            "Item %s has custom fields and attachments - searching for %s",
+            item["name"],
+            keyname,
+        )
+        try:
+            return fetch_from_attachment(session, item, keyname)
+        except RuntimeWarning as warning:
+            logging.warning(str(warning))
+        except RuntimeError as error:
+            logging.error(str(error))
+
+    logging.debug("Couldn't find an ssh key in attachments - falling back to notes")
+
+    # no way to validate the key without extra dependencies
+    # maybe check if the key starts with '----'?
+    # or just pass it to ssh-agent, and let it fail?
+    if isinstance(item["notes"], str):
+        return item["notes"]
+
+    raise RuntimeError("Could not find an SSH key on item %s" % item["name"])
+
+
+def fetch_from_attachment(session: str, item: dict[str, Any], keyname: str) -> str:
     """
     Function to get the key contents from the Bitwarden vault
     """
-    logging.debug("Item ID: %s", item_id)
-    logging.debug("Key ID: %s", key_id)
+    private_key_file = ""
+    try:
+        private_key_file = [k["value"] for k in item["fields"] if k["name"] == keyname][
+            0
+        ]
+    except IndexError:
+        raise RuntimeWarning(
+            'No "%s" field found for item %s' % (keyname, item["name"])
+        )
 
-    proc_attachment = subprocess.run(
-        [
-            "bw",
-            "get",
-            "attachment",
-            key_id,
-            "--itemid",
-            item_id,
-            "--raw",
-            "--session",
-            session,
-        ],
-        stdout=subprocess.PIPE,
-        universal_newlines=True,
-        check=True,
-    )
-    ssh_key = proc_attachment.stdout
+    logging.debug("Private key file declared")
 
+    try:
+        private_key_id = [
+            k["id"] for k in item["attachments"] if k["fileName"] == private_key_file
+        ][0]
+    except IndexError:
+        raise RuntimeWarning(
+            'No attachment called "%s" found for item %s'
+            % (private_key_file, item["name"])
+        )
+
+    logging.debug("Private key ID found")
+    logging.debug("Item ID: %s", item["id"])
+    logging.debug("Key ID: %s", private_key_id)
+
+    try:
+        proc_attachment = subprocess.run(
+            [
+                "bw",
+                "get",
+                "attachment",
+                private_key_id,
+                "--itemid",
+                item["id"],
+                "--raw",
+                "--session",
+                session,
+            ],
+            stdout=subprocess.PIPE,
+            universal_newlines=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError:
+        raise RuntimeError("Could not get attachment from Bitwarden")
+
+    return proc_attachment.stdout
+
+
+def ssh_add(ssh_key: str, key_pw: str = "") -> None:
+    """
+    Adds the key to the agent
+    """
     if key_pw:
         envdict = dict(
             os.environ,
@@ -186,6 +218,12 @@ def ssh_add(session: str, item_id: str, key_id: str, key_pw: str = "") -> None:
         envdict = dict(os.environ, SSH_ASKPASS_REQUIRE="never")
 
     logging.debug("Running ssh-add")
+
+    # if the key doesn't end with a line break, let's add it
+    if not ssh_key.endswith("\n"):
+        logging.debug("Adding a line break at the end of the key")
+        ssh_key += "\n"
+
     # CAVEAT: `ssh-add` provides no useful output, even with maximum verbosity
     subprocess.run(
         ["ssh-add", "-"],
@@ -249,7 +287,7 @@ if __name__ == "__main__":
         else:
             loglevel = logging.INFO
 
-        logging.basicConfig(level=loglevel)
+        logging.basicConfig(format="%(levelname)-8s %(message)s", level=loglevel)
 
         try:
             logging.info("Getting Bitwarden session")
@@ -264,9 +302,11 @@ if __name__ == "__main__":
 
             logging.info("Attempting to add keys to ssh-agent")
             add_ssh_keys(session, items, args.customfield, args.passphrasefield)
+        except RuntimeError as error:
+            logging.critical(str(error))
         except subprocess.CalledProcessError as error:
             if error.stderr:
-                logging.error('"%s" error: %s', error.cmd[0], error.stderr)
+                logging.critical('"%s" error: %s', error.cmd[0], error.stderr)
             logging.debug("Error running %s", error.cmd)
 
     if os.environ.get("SSH_ASKPASS") and os.environ.get(
