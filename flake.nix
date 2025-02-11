@@ -11,7 +11,7 @@
         let
           package = pkgs.python3Packages.buildPythonPackage {
             pname = "bitwarden-ssh-agent";
-            version = "0.1.2";
+            version = "0.1.3";
             src = ./. ;
             propagatedBuildInputs = [ pkgs.python3Packages.setuptools pkgs.bitwarden-cli ];
             format = "other";
