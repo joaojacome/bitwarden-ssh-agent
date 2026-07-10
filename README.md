@@ -23,6 +23,8 @@ Fetches SSH keys stored in Bitwarden vault and adds them to `ssh-agent`.
 3. (optional) Enter your SSH keys' passphrases if they're not stored in your Bitwarden.
 
 ## Storing the keys in Bitwarden
+
+### Option 1: Secret note
 1. Create a folder called `ssh-agent` (can be overridden on the command line).
 2. Add an new secure note to that folder.
 3. Add the private key to the secure note:
@@ -35,6 +37,11 @@ Fetches SSH keys stored in Bitwarden vault and adds them to `ssh-agent`.
         - The field name can be overridden on the command line
 4. (optional) If your key is encrypted with passphrase and you want it to decrypt automatically, save passphrase into custom field `passphrase` (field name can be overriden on the command line). You can create this field as `hidden` if you don't want the passphrase be displayed by default.
 5. Repeat steps 2-4 for each subsequent key
+
+### Option 2: Native Bitwarden SSH-Key
+1. Create a folder called `ssh-agent` (can be overridden on the command line).
+2. Add SSH-Key using [Bitwarden desktop, web app or browser extension](https://bitwarden.com/de-de/help/ssh-agent/#create-new-ssh-key)
+3. Repeat step 2 for each subsequent key
 
 ## Command line overrides
 * `--debug`/`-d` - Show debug output

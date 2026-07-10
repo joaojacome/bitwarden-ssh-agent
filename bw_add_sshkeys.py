@@ -127,6 +127,9 @@ def add_ssh_keys(
 
 
 def fetch_key(session: str, item: dict[str, Any], keyname: str) -> str:
+    if "sshKey" in item:
+        return item["sshKey"]["privateKey"]
+
     if "fields" in item and "attachments" in item:
         logging.debug(
             "Item %s has custom fields and attachments - searching for %s",
